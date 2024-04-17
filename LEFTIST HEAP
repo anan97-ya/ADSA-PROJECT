@@ -1,0 +1,139 @@
+#include <iostream>
+#include <unordered_map>
+#include <queue>
+
+using namespace std;
+
+
+struct Node {
+    int timestamp; 
+    string type;   
+    int priority;  
+    Node* left;    
+    Node* right;   
+    int npl;       
+
+    
+    Node(int ts, string t, int prio) : timestamp(ts), type(t), priority(prio), left(nullptr), right(nullptr), npl(0) {}
+};
+
+
+Node* merge(Node* h1, Node* h2) {
+    if (!h1) return h2;
+    if (!h2) return h1;
+
+    
+    if (h2->priority < h1->priority) {
+        Node* temp = h1;
+        h1 = h2;
+        h2 = temp;
+    }
+
+    
+    h1->right = merge(h1->right, h2);
+
+    
+    if (!h1->left || h1->right->npl > h1->left->npl) {
+        Node* temp = h1->left;
+        h1->left = h1->right;
+        h1->right = temp;
+    }
+
+    
+    h1->npl = (h1->right ? h1->right->npl + 1 : 0);
+
+    return h1;
+}
+
+
+Node* insert(Node* heap, int timestamp, string type, int priority) {
+    Node* newNode = new Node(timestamp, type, priority);
+    return merge(heap, newNode);
+}
+
+
+Node* deleteMin(Node* heap) {
+    if (!heap) return nullptr;
+
+    Node* leftChild = heap->left;
+    Node* rightChild = heap->right;
+    delete heap;
+    return merge(leftChild, rightChild);
+}
+
+
+class TaskManager {
+private:
+    Node* taskHeap; 
+    unordered_map<string, int> priorityMap; 
+
+public:
+    
+    TaskManager() : taskHeap(nullptr) {
+        
+        priorityMap["PlayerAction"] = 1;
+        priorityMap["NPCMovement"] = 2;
+        priorityMap["SpellCast"] = 1;
+        
+    }
+
+    void addTask(int timestamp, string type) {
+        
+        int priority = priorityMap[type];
+        taskHeap = insert(taskHeap, timestamp, type, priority);
+    }
+
+    
+    void deleteMin() {
+        taskHeap = ::deleteMin(taskHeap);
+    }
+
+    
+    void processTasks() {
+        while (taskHeap) {
+            Node* currentTask = taskHeap;
+            taskHeap = merge(taskHeap->left, taskHeap->right);
+            cout << "Executing task: Type - " << currentTask->type << ", Timestamp - " << currentTask->timestamp << ", Priority - " << currentTask->priority << endl;
+            delete currentTask; 
+        }
+    }
+
+    ~TaskManager() {
+        while (taskHeap) {
+            Node* temp = taskHeap;
+            taskHeap = merge(taskHeap->left, taskHeap->right);
+            delete temp;
+        }
+    }
+};
+
+int main() {
+
+    TaskManager gameServer1;
+    TaskManager gameServer2;
+
+
+    
+    gameServer1.addTask(100, "NPCMovement");
+    gameServer1.addTask(100, "NPCMovement");
+    gameServer1.addTask(100, "PlayerAction");
+    
+
+    gameServer2.addTask(100, "SpellCast");
+    gameServer2.addTask(100, "PlayerAction");
+
+    cout << endl;
+    
+    cout << "Processing tasks/events for Game Server 1:" << endl;
+    gameServer1.processTasks();
+    
+    cout << endl;
+
+    cout << "Processing tasks/events for Game Server 2:" << endl;
+    gameServer2.processTasks();
+
+    cout << endl;
+
+    return 0;
+}
+
